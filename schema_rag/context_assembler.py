@@ -9,62 +9,55 @@ from __future__ import annotations
 
 from typing import Any
 
+from datasets.schema_metadata import SCHEMA_METADATA
 from schema_rag.disambiguation import ColumnDisambiguator
 from schema_rag.fk_graph import FKGraph
 from schema_rag.vector_store import VectorStore
 
 
+def _default_fk_graph() -> FKGraph:
+    g = FKGraph()
+    g.build_from_metadata(SCHEMA_METADATA)
+    return g
+
+
 class ContextAssembler:
     def __init__(
         self,
-        vector_store: VectorStore,
-        fk_graph: FKGraph,
-        disambiguator: ColumnDisambiguator,
+        vector_store: VectorStore | None = None,
+        fk_graph: FKGraph | None = None,
+        disambiguator: ColumnDisambiguator | None = None,
         top_k: int = 15,
         schema_version: str = "v1",
     ) -> None:
-        self.vector_store = vector_store
-        self.fk_graph = fk_graph
-        self.disambiguator = disambiguator
+        self.vector_store = vector_store or VectorStore()
+        self.fk_graph = fk_graph or _default_fk_graph()
+        self.disambiguator = disambiguator or ColumnDisambiguator(SCHEMA_METADATA)
         self.top_k = top_k
         self.schema_version = schema_version
 
-    def assemble(self, question: str) -> dict[str, Any]:
+    def assemble(self, query: str, schema_version: str | None = None) -> str:
         """
-        Build the full schema context for a given question.
-
-        Returns a dict with:
-          - context_block: formatted string ready to inject into the LLM prompt
-          - relevant_tables: list of table names retrieved
-          - join_clauses: list of JOIN clauses connecting those tables
-          - disambiguation_notes: list of ambiguity notes (may be empty)
-          - raw_results: raw pgvector search results
+        Build and return the schema context string for injection into LLM prompts.
         """
+        version = schema_version or self.schema_version
         raw_results = self.vector_store.search(
-            query=question,
+            query=query,
             top_k=self.top_k,
-            schema_version=self.schema_version,
+            schema_version=version,
         )
 
         relevant_tables = self._extract_tables(raw_results)
         join_clauses = self.fk_graph.get_join_clauses_for_tables(relevant_tables)
         disambiguation_notes = self.disambiguator.get_disambiguation_notes(raw_results)
 
-        context_block = self._format_context(
-            question=question,
+        return self._format_context(
+            question=query,
             raw_results=raw_results,
             relevant_tables=relevant_tables,
             join_clauses=join_clauses,
             disambiguation_notes=disambiguation_notes,
         )
-
-        return {
-            "context_block": context_block,
-            "relevant_tables": relevant_tables,
-            "join_clauses": join_clauses,
-            "disambiguation_notes": disambiguation_notes,
-            "raw_results": raw_results,
-        }
 
     def _extract_tables(self, results: list[dict[str, Any]]) -> list[str]:
         seen: set[str] = set()
@@ -89,10 +82,22 @@ class ContextAssembler:
         lines.append("=== RELEVANT SCHEMA CONTEXT ===")
         lines.append(f"User question: {question}")
         lines.append("")
+        lines.append("IMPORTANT: Tables belong to separate databases. NEVER join across databases.")
+        lines.append("")
 
-        lines.append("Relevant tables:")
+        # Group tables by database prefix so the LLM cannot mistake cross-DB joins
+        db_to_tables: dict[str, list[str]] = {}
         for table in relevant_tables:
-            lines.append(f"  - {table}")
+            prefix = table.split("_")[0] if "_" in table else "other"
+            db_to_tables.setdefault(prefix, []).append(table)
+
+        db_names = {"nw": "Northwind", "tpch": "TPC-H", "nyc": "NYC Taxi"}
+        lines.append("Relevant tables (grouped by database):")
+        for prefix, tables in db_to_tables.items():
+            db_label = db_names.get(prefix, prefix)
+            lines.append(f"  [{db_label} database - prefix '{prefix}_']")
+            for t in tables:
+                lines.append(f"    - {t}")
         lines.append("")
 
         lines.append("Relevant columns:")
