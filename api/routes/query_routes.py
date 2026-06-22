@@ -17,6 +17,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from api.config import settings
+from api.routes.connection_routes import get_connection_url
 from schema_rag.context_assembler import ContextAssembler
 from sql_agent import semantic_checker
 from sql_agent.corrector import SelfCorrector
@@ -45,10 +46,12 @@ class QueryRequest(BaseModel):
     question: str = Field(..., min_length=5, max_length=1000)
     schema_version: str = Field(default="v1")
     run_semantic_check: bool = Field(default=True)
+    connection_id: int | None = Field(default=None)
 
 
 class QueryResponse(BaseModel):
     success: bool
+    query_id: int | None = None
     question: str
     sql: str
     rows: list[dict] = []
@@ -64,7 +67,7 @@ class QueryResponse(BaseModel):
     error: str | None = None
 
 
-def _save_to_history(result, semantic, question: str, schema_version: str) -> None:
+def _save_to_history(result, semantic, question: str, schema_version: str) -> int | None:
     try:
         conn = psycopg2.connect(settings.database_url)
         with conn.cursor() as cur:
@@ -75,6 +78,7 @@ def _save_to_history(result, semantic, question: str, schema_version: str) -> No
                      latency_ms, error_trace, semantic_score, semantic_note,
                      row_count, truncated)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                RETURNING id
                 """,
                 (
                     question,
@@ -90,10 +94,12 @@ def _save_to_history(result, semantic, question: str, schema_version: str) -> No
                     result.truncated,
                 ),
             )
+            row = cur.fetchone()
         conn.commit()
         conn.close()
+        return row[0] if row else None
     except Exception:
-        pass  # history is best-effort; never fail the user response
+        return None  # history is best-effort; never fail the user response
 
 
 @router.post("/query", response_model=QueryResponse)
@@ -101,15 +107,21 @@ def run_query(payload: QueryRequest) -> QueryResponse:
     assembler = _get_assembler()
     corrector = _get_corrector()
 
+    db_url: str | None = None
+    schema_version = payload.schema_version
+    if payload.connection_id is not None:
+        db_url, schema_version = get_connection_url(payload.connection_id)
+
     schema_context = assembler.assemble(
         query=payload.question,
-        schema_version=payload.schema_version,
+        schema_version=schema_version,
     )
 
     result = corrector.run(
         question=payload.question,
         schema_context=schema_context,
         max_iterations=3,
+        db_url=db_url,
     )
 
     semantic = None
@@ -124,11 +136,12 @@ def run_query(payload: QueryRequest) -> QueryResponse:
         except Exception:
             pass  # semantic check is best-effort
 
-    _save_to_history(result, semantic, payload.question, payload.schema_version)
+    query_id = _save_to_history(result, semantic, payload.question, schema_version)
 
     if not result.success:
         return QueryResponse(
             success=False,
+            query_id=query_id,
             question=payload.question,
             sql=result.sql,
             iterations=result.iterations,
@@ -138,6 +151,7 @@ def run_query(payload: QueryRequest) -> QueryResponse:
 
     return QueryResponse(
         success=True,
+        query_id=query_id,
         question=payload.question,
         sql=result.sql,
         rows=result.rows,
@@ -153,6 +167,51 @@ def run_query(payload: QueryRequest) -> QueryResponse:
     )
 
 
+class SavedQuery(BaseModel):
+    id: int
+    question: str
+    created_at: str
+
+
+@router.post("/saved", response_model=SavedQuery)
+def save_query(payload: QueryRequest) -> SavedQuery:
+    conn = psycopg2.connect(settings.database_url)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO saved_queries (question) VALUES (%s) RETURNING id, created_at",
+                (payload.question,),
+            )
+            row = cur.fetchone()
+        conn.commit()
+    finally:
+        conn.close()
+    return SavedQuery(id=row[0], question=payload.question, created_at=row[1].isoformat())
+
+
+@router.get("/saved", response_model=list[SavedQuery])
+def list_saved() -> list[SavedQuery]:
+    conn = psycopg2.connect(settings.database_url)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, question, created_at FROM saved_queries ORDER BY created_at DESC LIMIT 100")
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    return [SavedQuery(id=r[0], question=r[1], created_at=r[2].isoformat()) for r in rows]
+
+
+@router.delete("/saved/{query_id}", status_code=204)
+def delete_saved(query_id: int) -> None:
+    conn = psycopg2.connect(settings.database_url)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM saved_queries WHERE id = %s", (query_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 class HistoryEntry(BaseModel):
     id: int
     question: str
@@ -163,6 +222,30 @@ class HistoryEntry(BaseModel):
     semantic_score: int | None
     row_count: int | None
     created_at: str
+
+
+class FeedbackPayload(BaseModel):
+    query_id: int
+    rating: int  # 1 = thumbs down, 5 = thumbs up
+    comment: str | None = None
+
+
+@router.post("/feedback", status_code=204)
+def submit_feedback(payload: FeedbackPayload) -> None:
+    if payload.rating not in (1, 5):
+        return
+    conn = psycopg2.connect(settings.database_url)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO feedback (query_id, rating, comment) VALUES (%s, %s, %s)",
+                (payload.query_id, payload.rating, payload.comment),
+            )
+        conn.commit()
+    except Exception:
+        pass
+    finally:
+        conn.close()
 
 
 @router.get("/history", response_model=list[HistoryEntry])

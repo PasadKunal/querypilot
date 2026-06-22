@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { runQuery } from "../api/client";
-import type { QueryResponse } from "../api/types";
+import { useEffect, useState } from "react";
+import { deleteSavedQuery, listConnections, listSavedQueries, listUserTables, runQuery, saveQuery, submitFeedback } from "../api/client";
+import type { QueryResponse, SavedQuery, UserConnection, UserTable } from "../api/types";
 import MetaCard from "../components/MetaCard";
+import ResultChart from "../components/ResultChart";
 import ResultsTable from "../components/ResultsTable";
 import SQLBlock from "../components/SQLBlock";
 
@@ -56,14 +57,42 @@ export default function QueryPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QueryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [userTables, setUserTables] = useState<UserTable[]>([]);
+  const [connections, setConnections] = useState<UserConnection[]>([]);
+  const [connectionId, setConnectionId] = useState<number | null>(null);
+  const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [feedback, setFeedback] = useState<1 | 5 | null>(null);
+
+  useEffect(() => {
+    listUserTables().then(setUserTables).catch(() => {});
+    listConnections().then(setConnections).catch(() => {});
+    listSavedQueries().then(setSavedQueries).catch(() => {});
+  }, []);
+
+  const handleSave = async () => {
+    if (!question.trim()) return;
+    try {
+      const saved = await saveQuery(question.trim());
+      setSavedQueries((prev) => [saved, ...prev]);
+      setBookmarked(true);
+      setTimeout(() => setBookmarked(false), 2000);
+    } catch { /* silent */ }
+  };
+
+  const handleDeleteSaved = async (id: number) => {
+    await deleteSavedQuery(id);
+    setSavedQueries((prev) => prev.filter((q) => q.id !== id));
+  };
 
   const submit = async () => {
     if (!question.trim()) return;
     setLoading(true);
     setResult(null);
     setError(null);
+    setFeedback(null);
     try {
-      const res = await runQuery({ question: question.trim() });
+      const res = await runQuery({ question: question.trim(), connection_id: connectionId });
       setResult(res);
       if (!res.success) setError(res.error ?? "Query failed.");
     } catch (e) {
@@ -102,6 +131,38 @@ export default function QueryPage() {
             Type a question in plain English. QueryPilot generates SQL, runs it, and validates the result.
           </p>
 
+          {/* Connection selector */}
+          {connections.length > 0 && (
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-slate-400 text-xs shrink-0">Query against:</span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setConnectionId(null)}
+                  className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-all ${
+                    connectionId === null
+                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                      : "bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-500"
+                  }`}
+                >
+                  Built-in databases
+                </button>
+                {connections.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setConnectionId(c.id)}
+                    className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-all ${
+                      connectionId === c.id
+                        ? "bg-violet-600 text-white border-violet-600 shadow-sm"
+                        : "bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-500"
+                    }`}
+                  >
+                    🔌 {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Query input */}
           <div className="bg-white rounded-2xl overflow-hidden shadow-2xl shadow-black/40">
             <textarea
@@ -124,8 +185,20 @@ export default function QueryPage() {
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-3 ml-3 shrink-0">
+              <div className="flex items-center gap-2 ml-3 shrink-0">
                 <span className="text-slate-400 text-xs hidden md:block">⌘ Enter</span>
+                <button
+                  onClick={handleSave}
+                  disabled={!question.trim()}
+                  title="Save this query"
+                  className={`flex items-center gap-1.5 text-sm px-3 py-2.5 rounded-xl border transition-all ${
+                    bookmarked
+                      ? "bg-amber-50 border-amber-300 text-amber-600"
+                      : "bg-white border-slate-200 text-slate-500 hover:border-blue-300 hover:text-blue-600"
+                  } disabled:opacity-30`}
+                >
+                  {bookmarked ? "★" : "☆"}
+                </button>
                 <button
                   onClick={submit}
                   disabled={loading || !question.trim()}
@@ -180,12 +253,32 @@ export default function QueryPage() {
                     <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-xs ring-1 ring-emerald-200">✓</span>
                     Query succeeded
                   </div>
-                  <button
-                    onClick={() => { setResult(null); setError(null); setQuestion(""); }}
-                    className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
-                  >
-                    Clear
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {result.query_id && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-slate-400">Helpful?</span>
+                        {([5, 1] as const).map((r) => (
+                          <button
+                            key={r}
+                            onClick={async () => {
+                              setFeedback(r);
+                              await submitFeedback(result.query_id!, r);
+                            }}
+                            className={`text-lg transition-all ${feedback === r ? "opacity-100 scale-110" : "opacity-40 hover:opacity-80"}`}
+                          >
+                            {r === 5 ? "👍" : "👎"}
+                          </button>
+                        ))}
+                        {feedback && <span className="text-xs text-slate-400 ml-1">Thanks!</span>}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => { setResult(null); setError(null); setQuestion(""); setFeedback(null); }}
+                      className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -203,11 +296,40 @@ export default function QueryPage() {
                 </div>
               )}
 
+              {/* Chart */}
+              {result.rows.length > 0 && (
+                <ResultChart columns={result.columns} rows={result.rows} />
+              )}
+
               {/* Table */}
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2.5">
-                  Results — {result.row_count} {result.row_count === 1 ? "row" : "rows"}
-                </p>
+                <div className="flex items-center justify-between mb-2.5">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
+                    Results — {result.row_count} {result.row_count === 1 ? "row" : "rows"}
+                  </p>
+                  <button
+                    onClick={() => {
+                      const header = result.columns.join(",");
+                      const body = result.rows.map((r) =>
+                        result.columns.map((c) => {
+                          const v = r[c];
+                          return v == null ? "" : String(v).includes(",") ? `"${String(v)}"` : String(v);
+                        }).join(",")
+                      ).join("\n");
+                      const blob = new Blob([header + "\n" + body], { type: "text/csv" });
+                      const a = document.createElement("a");
+                      a.href = URL.createObjectURL(blob);
+                      a.download = "results.csv";
+                      a.click();
+                    }}
+                    className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-600 border border-slate-200 hover:border-blue-300 px-3 py-1.5 rounded-lg transition-all bg-white"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Export CSV
+                  </button>
+                </div>
                 <ResultsTable columns={result.columns} rows={result.rows} truncated={result.truncated} />
               </div>
 
@@ -225,31 +347,104 @@ export default function QueryPage() {
 
           {/* Empty state – database cards */}
           {!result && !loading && !error && (
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">Available Databases</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {DATABASES.map((db) => (
-                  <div key={db.name} className={`rounded-2xl border ${db.border} ${db.bg} p-5 flex flex-col gap-3`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${db.color} flex items-center justify-center text-lg shadow-sm`}>
-                        {db.icon}
+            <div className="flex flex-col gap-8">
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">Built-in Databases</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {DATABASES.map((db) => (
+                    <div key={db.name} className={`rounded-2xl border ${db.border} ${db.bg} p-5 flex flex-col gap-3`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${db.color} flex items-center justify-center text-lg shadow-sm`}>
+                          {db.icon}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900 text-sm">{db.name}</p>
+                          <p className="text-slate-500 text-xs">{db.tables.length - 1} tables</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold text-slate-900 text-sm">{db.name}</p>
-                        <p className="text-slate-500 text-xs">{db.tables.length - 1} tables</p>
+                      <p className="text-slate-600 text-xs leading-relaxed">{db.desc}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {db.tables.map((t) => (
+                          <span key={t} className="text-[10px] font-mono bg-white/70 border border-slate-200/80 text-slate-500 px-1.5 py-0.5 rounded">
+                            {t}
+                          </span>
+                        ))}
                       </div>
                     </div>
-                    <p className="text-slate-600 text-xs leading-relaxed">{db.desc}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {db.tables.map((t) => (
-                        <span key={t} className="text-[10px] font-mono bg-white/70 border border-slate-200/80 text-slate-500 px-1.5 py-0.5 rounded">
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
+
+              {userTables.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">Your Uploaded Tables</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {userTables.map((t) => (
+                      <button
+                        key={t.table_name}
+                        onClick={() => setQuestion(`Show the first 10 rows of ${t.display_name}`)}
+                        className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 flex flex-col gap-3 text-left hover:border-emerald-300 hover:bg-emerald-100/60 transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center text-lg shadow-sm text-white">
+                            📄
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-900 text-sm truncate max-w-[140px]">{t.display_name}</p>
+                            <p className="text-slate-500 text-xs">{t.row_count.toLocaleString()} rows · {t.column_count} cols</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {t.columns.slice(0, 4).map((c) => (
+                            <span key={c.name} className="text-[10px] font-mono bg-white/80 border border-emerald-200/80 text-slate-500 px-1.5 py-0.5 rounded">
+                              {c.name}
+                            </span>
+                          ))}
+                          {t.columns.length > 4 && (
+                            <span className="text-[10px] text-slate-400">+{t.columns.length - 4}</span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {savedQueries.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">Saved Queries</p>
+                  <div className="flex flex-col gap-2">
+                    {savedQueries.map((q) => (
+                      <div key={q.id} className="flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 group hover:border-blue-200 transition-colors">
+                        <button
+                          onClick={() => setQuestion(q.question)}
+                          className="text-sm text-slate-700 text-left flex-1 truncate"
+                        >
+                          {q.question}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSaved(q.id)}
+                          className="text-slate-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {userTables.length === 0 && (
+                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl shrink-0">📂</div>
+                  <div>
+                    <p className="text-slate-700 text-sm font-medium">Upload your own CSV</p>
+                    <p className="text-slate-400 text-xs mt-0.5">
+                      Go to <span className="font-medium text-slate-500">Upload CSV</span> in the sidebar to add your own data and query it instantly.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

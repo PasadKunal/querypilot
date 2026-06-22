@@ -6,6 +6,8 @@ import HistoryPage from "./pages/HistoryPage";
 import LoginPage from "./pages/LoginPage";
 import QueryPage from "./pages/QueryPage";
 import RegisterPage from "./pages/RegisterPage";
+import ConnectionsPage from "./pages/ConnectionsPage";
+import UploadPage from "./pages/UploadPage";
 
 function AppShell() {
   return (
@@ -14,6 +16,8 @@ function AppShell() {
       <main className="flex-1 overflow-y-auto">
         <Routes>
           <Route path="/" element={<ProtectedRoute><QueryPage /></ProtectedRoute>} />
+          <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
+          <Route path="/connections" element={<ProtectedRoute><ConnectionsPage /></ProtectedRoute>} />
           <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
         </Routes>
       </main>

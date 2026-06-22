@@ -5,6 +5,8 @@ import { useAuth } from "../context/AuthContext";
 
 const NAV_ITEMS = [
   { to: "/", label: "Query", icon: "⚡", end: true },
+  { to: "/upload", label: "Upload CSV", icon: "📂", end: false },
+  { to: "/connections", label: "Connections", icon: "🔌", end: false },
   { to: "/history", label: "History", icon: "🕓", end: false },
 ];
 

@@ -41,5 +41,19 @@ CREATE INDEX IF NOT EXISTS query_history_created_idx ON query_history (created_a
 CREATE INDEX IF NOT EXISTS query_history_user_idx    ON query_history (user_id);
 CREATE INDEX IF NOT EXISTS feedback_query_idx        ON feedback (query_id);
 
+CREATE TABLE IF NOT EXISTS user_tables (
+    id            SERIAL PRIMARY KEY,
+    table_name    VARCHAR(100) NOT NULL UNIQUE,
+    display_name  VARCHAR(255) NOT NULL,
+    user_id       INTEGER,
+    row_count     INTEGER      NOT NULL DEFAULT 0,
+    column_count  INTEGER      NOT NULL DEFAULT 0,
+    columns_json  JSONB,
+    created_at    TIMESTAMPTZ  DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS user_tables_user_idx    ON user_tables (user_id);
+CREATE INDEX IF NOT EXISTS user_tables_created_idx ON user_tables (created_at DESC);
+
 -- Grant sandbox role read access to query history for debugging
 GRANT SELECT ON query_history TO querypilot_readonly;

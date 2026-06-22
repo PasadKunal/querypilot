@@ -91,7 +91,7 @@ class ContextAssembler:
             prefix = table.split("_")[0] if "_" in table else "other"
             db_to_tables.setdefault(prefix, []).append(table)
 
-        db_names = {"nw": "Northwind", "tpch": "TPC-H", "nyc": "NYC Taxi"}
+        db_names = {"nw": "Northwind", "tpch": "TPC-H", "nyc": "NYC Taxi", "ut": "User Upload"}
         lines.append("Relevant tables (grouped by database):")
         for prefix, tables in db_to_tables.items():
             db_label = db_names.get(prefix, prefix)
