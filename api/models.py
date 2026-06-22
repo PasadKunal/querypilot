@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, Text
+from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, Text, JSON
+from pgvector.sqlalchemy import Vector
 from api.database import Base
 
 
@@ -37,4 +38,22 @@ class Feedback(Base):
     user_id = Column(Integer, nullable=True)
     rating = Column(String, nullable=False)  # "up" or "down"
     corrected_sql = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class SchemaEmbedding(Base):
+    __tablename__ = "schema_embeddings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    schema_version = Column(String(20), nullable=False, default="v1")
+    entry_type = Column(String(20), nullable=False)
+    database_name = Column(String(100), nullable=False)
+    table_name = Column(String(100), nullable=False)
+    column_name = Column(String(100))
+    data_type = Column(String(50))
+    description = Column(Text)
+    sample_values = Column(JSON)
+    fk_references = Column(String(300))
+    content = Column(Text, nullable=False)
+    embedding = Column(Vector(1536))
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
