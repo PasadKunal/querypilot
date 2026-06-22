@@ -26,8 +26,8 @@ from datasets.schema_metadata import SCHEMA_METADATA
 
 EMBEDDING_MODEL = "gemini-embedding-001"
 EMBEDDING_DIM = 768
-BATCH_SIZE = 50
-RATE_LIMIT_SLEEP = 0.5
+BATCH_SIZE = 45
+RATE_LIMIT_SLEEP = 65  # free tier allows 100 requests/min; wait a full minute between batches
 
 
 class SchemaEmbedder:
