@@ -90,18 +90,18 @@ export default function HistoryPage() {
                         </span>
                       </td>
                       <td className="px-4 py-4 text-center text-slate-500 text-sm">{e.iterations}</td>
-                      <td className="px-4 py-4 text-center text-slate-500 text-sm">{e.row_count ?? <span className="text-slate-300">—</span>}</td>
+                      <td className="px-4 py-4 text-center text-slate-500 text-sm">{e.row_count ?? <span className="text-slate-300">-</span>}</td>
                       <td className="px-4 py-4 text-center text-sm">
                         {e.semantic_score !== null ? (
                           <span className={`font-semibold ${e.semantic_score >= 7 ? "text-emerald-600" : "text-amber-600"}`}>
                             {e.semantic_score}/10
                           </span>
                         ) : (
-                          <span className="text-slate-300">—</span>
+                          <span className="text-slate-300">-</span>
                         )}
                       </td>
                       <td className="px-4 py-4 text-right text-slate-500 text-sm">
-                        {e.latency_ms ? `${(e.latency_ms / 1000).toFixed(2)}s` : <span className="text-slate-300">—</span>}
+                        {e.latency_ms ? `${(e.latency_ms / 1000).toFixed(2)}s` : <span className="text-slate-300">-</span>}
                       </td>
                       <td className="px-5 py-4 text-right text-slate-400 text-xs whitespace-nowrap">
                         {new Date(e.created_at).toLocaleString()}

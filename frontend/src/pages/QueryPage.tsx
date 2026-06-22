@@ -120,7 +120,7 @@ export default function QueryPage() {
           <div className="flex items-center gap-2 mb-5">
             <span className="inline-flex items-center gap-1.5 bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-medium px-3 py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-              3 live databases · 20 tables · 140 schema chunks
+              {3 + connections.length} databases · {20 + userTables.length} tables · {connections.length + userTables.length > 0 ? "live" : "ready"}
             </span>
           </div>
 
@@ -305,7 +305,7 @@ export default function QueryPage() {
               <div>
                 <div className="flex items-center justify-between mb-2.5">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
-                    Results — {result.row_count} {result.row_count === 1 ? "row" : "rows"}
+                    Results: {result.row_count} {result.row_count === 1 ? "row" : "rows"}
                   </p>
                   <button
                     onClick={() => {

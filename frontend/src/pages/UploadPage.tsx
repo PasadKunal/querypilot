@@ -54,7 +54,7 @@ export default function UploadPage() {
       return;
     }
     if (file.size > 20 * 1024 * 1024) {
-      setError("File too large — max 20 MB");
+      setError("File too large (max 20 MB)");
       return;
     }
     setError(null);
@@ -274,7 +274,7 @@ export default function UploadPage() {
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Tips</p>
           <ul className="flex flex-col gap-2 text-sm text-slate-600">
             <li className="flex gap-2"><span className="text-slate-400">•</span> Column types are inferred automatically (TEXT, BIGINT, NUMERIC, TIMESTAMP, BOOLEAN)</li>
-            <li className="flex gap-2"><span className="text-slate-400">•</span> The first row must be headers — QueryPilot uses them to understand your data</li>
+            <li className="flex gap-2"><span className="text-slate-400">•</span> The first row must be headers. QueryPilot uses them to understand your data</li>
             <li className="flex gap-2"><span className="text-slate-400">•</span> After upload, switch to the Query page and ask a natural language question about your data</li>
             <li className="flex gap-2"><span className="text-slate-400">•</span> Tables are shared across all users of this instance</li>
           </ul>

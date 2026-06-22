@@ -42,7 +42,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl shadow-black/40 overflow-hidden">
         <div className="px-8 pt-8 pb-6">
           <h1 className="text-2xl font-bold text-slate-900 mb-1">Create your account</h1>
-          <p className="text-slate-500 text-sm mb-6">Free to use — no credit card required</p>
+          <p className="text-slate-500 text-sm mb-6">Free to use, no credit card required</p>
 
           {error && (
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mb-5">

@@ -99,7 +99,7 @@ export default function ConnectionsPage() {
                 className="border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all font-mono"
                 disabled={adding}
               />
-              <p className="text-xs text-slate-400">Use a read-only role — QueryPilot only runs SELECT queries</p>
+              <p className="text-xs text-slate-400">Use a read-only role. QueryPilot only runs SELECT queries.</p>
             </div>
 
             {error && (
@@ -200,7 +200,7 @@ export default function ConnectionsPage() {
             <li className="flex gap-2"><span className="text-slate-400">1.</span> QueryPilot connects, reads your table and column names from <code className="text-xs bg-slate-100 px-1 rounded">information_schema</code></li>
             <li className="flex gap-2"><span className="text-slate-400">2.</span> Embeds the schema using Gemini so the agent understands your table structure</li>
             <li className="flex gap-2"><span className="text-slate-400">3.</span> On the Query page, select your connection from the dropdown before asking a question</li>
-            <li className="flex gap-2"><span className="text-slate-400">4.</span> Only SELECT queries are allowed — your data is read-only</li>
+            <li className="flex gap-2"><span className="text-slate-400">4.</span> Only SELECT queries are allowed, so your data stays read-only</li>
           </ul>
         </div>
 

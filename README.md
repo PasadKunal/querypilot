@@ -1,83 +1,173 @@
 # QueryPilot
 
-A production NL-to-SQL agent with schema-aware RAG, iterative self-correction, fine-tuning on collected user feedback, and a deployable multi-turn analytics interface.
+QueryPilot lets you ask questions about your data in plain English and get accurate SQL back. It works on real schemas with dozens of tables, handles ambiguous questions, and catches its own mistakes before showing you the result.
 
-> This project is actively under development. Benchmark results and demo will be added as each phase completes.
+Built as a portfolio project to demonstrate end-to-end AI engineering: schema-aware RAG, iterative self-correction, a full auth system, and a React frontend.
 
-## What it does
+---
 
-QueryPilot lets non-technical users ask questions in plain English and get reliable SQL back. It is built to work on real schemas (47+ tables, multiple databases) where most NL2SQL tools break.
+## What it can do
 
-Core capabilities being built:
+**Query any database in plain English**
+Type a question like "show me the top 10 customers by total spend last month" and QueryPilot figures out which tables to join, writes the SQL, runs it, and shows you the result. It does this against three built-in datasets or any PostgreSQL database you connect.
 
-- Schema-aware RAG using pgvector so only the relevant tables get injected into the prompt
-- A 3-iteration self-correction loop (syntax validation, sandboxed execution, error feedback re-generation)
-- Fine-tuned Qwen2.5-Coder-7B on DPO pairs from real user feedback via QLoRA
-- Complexity-based model routing to cut inference costs by ~70%
-- Multi-turn conversation with schema context persistence
-- Business glossary injection for domain-specific accuracy
+**Bring your own data**
+Upload a CSV or Excel file and it becomes queryable within seconds. QueryPilot creates a table, infers the column types, embeds the schema, and makes it available on the query page automatically.
 
-## Tech Stack
+**Connect your own database**
+Paste a PostgreSQL connection string and QueryPilot reads your schema from `information_schema`, embeds it, and lets you query it in plain English. Supports multiple connections at once.
 
-| Layer | Technology |
+**Self-correcting agent**
+If the generated SQL fails or returns suspicious results, the agent re-reads the error, adjusts its approach, and tries again, up to three times. Most errors get corrected silently before you see anything.
+
+**Charts from results**
+Query results are automatically visualized. Bar chart by default, line chart for time-series data, pie chart for small categorical breakdowns. Powered by Recharts with no configuration needed.
+
+**Export and save**
+Download any result set as a CSV file. Bookmark questions you run often with the star button and rerun them with one click.
+
+**Feedback loop**
+Thumbs up or down on any result. Ratings are stored in the database so the data is there for future fine-tuning or analysis.
+
+---
+
+## Architecture
+
+```
+User question
+     |
+     v
+Schema RAG (pgvector + Gemini embeddings)
+  Finds the top-k relevant tables and columns from your schema
+
+     |
+     v
+SQL Agent (Groq / LLaMA-3.3-70B)
+  Generates SQL using schema context + few-shot examples
+
+     |
+     v
+Self-Correction Loop (up to 3 iterations)
+  Validates syntax, executes in sandbox, feeds errors back to the model
+
+     |
+     v
+Semantic Scorer
+  Checks that the result actually answers the question (0-10 score)
+
+     |
+     v
+Result + Chart + Export
+```
+
+The schema is embedded once (per upload or connection) using Gemini's `gemini-embedding-001` model and stored in a pgvector table. At query time, only the relevant schema chunks are injected into the prompt, which keeps latency low and prevents context overload on large schemas.
+
+---
+
+## Tech stack
+
+| Layer | What is used |
 |---|---|
-| Backend | FastAPI, Python 3.11 |
-| Database | PostgreSQL + pgvector (Supabase) |
-| Primary LLMs | GPT-4o, Claude 3.5 Sonnet |
-| Low-latency inference | Groq (LLaMA-3.1-70B) |
+| Backend | FastAPI, Python 3.12 |
+| Database | PostgreSQL + pgvector on Supabase |
+| LLM inference | Groq (LLaMA-3.3-70B) |
+| Embeddings | Google Gemini (gemini-embedding-001, 768-dim) |
 | SQL validation | sqlglot |
-| FK graph | NetworkX |
-| Fine-tuning | Unsloth + QLoRA (Qwen2.5-Coder-7B) |
-| Complexity router | DistilBERT |
-| Frontend | React + TypeScript + Monaco Editor |
-| Cache | Redis (Upstash) |
-| Deployment | Render (API) + Vercel (Frontend) |
+| Frontend | React + TypeScript + Tailwind CSS |
+| Charts | Recharts |
+| Auth | JWT + bcrypt |
+| Tests | pytest (87 tests) |
 
-## Quick Start
+---
+
+## Running locally
+
+**Requirements:** Python 3.11+, Node 18+, a Supabase project with pgvector enabled
 
 ```bash
-# Clone the repo
 git clone https://github.com/PasadKunal/querypilot.git
 cd querypilot
 
-# Create and activate virtual environment
 python3 -m venv qpvenv
 source qpvenv/bin/activate
-
-# Install dependencies
 pip install -r requirements.txt
+```
 
-# Copy the env template and fill in your keys
+Copy the env template and fill in your keys:
+
+```bash
 cp .env.example .env
+```
 
-# Run the API
+You need:
+- `DATABASE_URL`: your Supabase connection string
+- `GEMINI_API_KEY`: Google AI Studio key for embeddings
+- `GROQ_API_KEY`: Groq key for LLM inference
+- `SECRET_KEY`: any long random string for JWT signing
+
+Run the database migrations:
+
+```bash
+psql $DATABASE_URL -f infra/create_app_tables.sql
+```
+
+Start the API:
+
+```bash
 uvicorn api.main:app --reload
 ```
 
-The API will be available at `http://localhost:8000`. Check `http://localhost:8000/health` to verify it is running. Interactive docs are at `http://localhost:8000/docs`.
+Start the frontend:
 
-## Project Structure
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. The API health check is at `http://localhost:8000/health`.
+
+---
+
+## Project structure
 
 ```
 querypilot/
-  schema_rag/       Schema embedding, pgvector search, FK graph, prompt assembly
-  sql_agent/        SQL generation, validation, execution, self-correction
-  fine_tuning/      DPO collection, QLoRA training, complexity classifier, model router
-  evaluation/       Spider benchmark runner, MLflow logging, baseline comparisons
-  api/              FastAPI app, auth, routes, conversation manager, glossary
-  frontend/         React + Monaco Editor UI
-  datasets/         Schema SQL files and seed data loaders
-  infra/            Dockerfile, docker-compose, postgres roles, CI config
-  tests/            Pytest test suite
+  api/              FastAPI app, auth, and route handlers
+    routes/         Query, upload, connection, and history endpoints
+  schema_rag/       pgvector search and schema context assembly
+  sql_agent/        SQL generation, validation, and self-correction
+  datasets/         CSV processor and schema seed loaders
+  frontend/         React app
+    src/pages/      Query, Upload, Connections, History pages
+    src/components/ ResultChart and Navbar
+  infra/            SQL for creating tables and roles
+  tests/            87 pytest tests covering routes, agent, and RAG
 ```
 
-## Benchmark Results
+---
 
-Coming in Phase 5. Target: 81% exact-match on Spider dev set.
+## Running tests
 
-| Model | Exact Match | Execution Accuracy |
-|---|---|---|
-| GPT-4o zero-shot (baseline) | 67% | 74% |
-| GPT-4o + static few-shot | 75% | 81% |
-| QueryPilot (schema RAG + dynamic few-shot) | TBD | TBD |
-| Fine-tuned Qwen2.5-Coder-7B (simple queries) | TBD | TBD |
+```bash
+source qpvenv/bin/activate
+pytest tests/ -q
+```
+
+All external calls (LLM, database, Gemini) are mocked so the tests run offline and fast.
+
+---
+
+## Key design decisions
+
+**Schema RAG over full-schema injection**
+Dumping the entire schema into every prompt is slow and hits context limits fast. QueryPilot embeds each table and column separately, then retrieves only the top-k chunks that are semantically relevant to the question. This makes it practical on schemas with 50+ tables.
+
+**Self-correction loop instead of a single shot**
+One-shot SQL generation fails too often on real schemas. The agent sees its own errors and retries, which handles typos in table names, missing JOINs, and type mismatches that the model almost always fixes on a second try.
+
+**Read-only sandbox for all SQL execution**
+All queries run as a database user with SELECT-only permissions. This makes it safe to connect production read replicas without worrying about accidental writes or deletes.
+
+**Client-side CSV export**
+The export button builds the CSV in the browser from the already-loaded result set. No round-trip to the server needed.
