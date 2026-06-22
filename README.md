@@ -2,6 +2,8 @@
 
 QueryPilot lets you ask questions about your data in plain English and get accurate SQL back. It works on real schemas with dozens of tables, handles ambiguous questions, and catches its own mistakes before showing you the result.
 
+**Live demo:** https://querypilot-sage.vercel.app
+
 Built as a portfolio project to demonstrate end-to-end AI engineering: schema-aware RAG, iterative self-correction, a full auth system, and a React frontend.
 
 ---
@@ -9,25 +11,25 @@ Built as a portfolio project to demonstrate end-to-end AI engineering: schema-aw
 ## What it can do
 
 **Query any database in plain English**
-Type a question like "show me the top 10 customers by total spend last month" and QueryPilot figures out which tables to join, writes the SQL, runs it, and shows you the result. It does this against three built-in datasets or any PostgreSQL database you connect.
+Type a question like "show me the top 10 customers by total spend last month" and QueryPilot figures out which tables to join, writes the SQL, runs it, and shows you the result. Works against three built-in datasets or any PostgreSQL database you connect.
 
 **Bring your own data**
-Upload a CSV or Excel file and it becomes queryable within seconds. QueryPilot creates a table, infers the column types, embeds the schema, and makes it available on the query page automatically.
+Upload a CSV or Excel file and it becomes queryable within seconds. QueryPilot creates a table, infers column types, embeds the schema, and makes it available on the query page automatically.
 
 **Connect your own database**
 Paste a PostgreSQL connection string and QueryPilot reads your schema from `information_schema`, embeds it, and lets you query it in plain English. Supports multiple connections at once.
 
 **Self-correcting agent**
-If the generated SQL fails or returns suspicious results, the agent re-reads the error, adjusts its approach, and tries again, up to three times. Most errors get corrected silently before you see anything.
+If the generated SQL fails or returns suspicious results, the agent re-reads the error, adjusts its approach, and tries again up to three times. Most errors get corrected silently before you see anything.
 
 **Charts from results**
 Query results are automatically visualized. Bar chart by default, line chart for time-series data, pie chart for small categorical breakdowns. Powered by Recharts with no configuration needed.
 
 **Export and save**
-Download any result set as a CSV file. Bookmark questions you run often with the star button and rerun them with one click.
+Download any result set as a CSV. Bookmark questions you run often with the star button and rerun them with one click.
 
 **Feedback loop**
-Thumbs up or down on any result. Ratings are stored in the database so the data is there for future fine-tuning or analysis.
+Thumbs up or down on any result. Ratings are stored in the database for future fine-tuning or analysis.
 
 ---
 
@@ -38,7 +40,7 @@ User question
      |
      v
 Schema RAG (pgvector + Gemini embeddings)
-  Finds the top-k relevant tables and columns from your schema
+  Finds the top-k relevant tables and columns for the question
 
      |
      v
@@ -60,7 +62,7 @@ Semantic Scorer
 Result + Chart + Export
 ```
 
-The schema is embedded once (per upload or connection) using Gemini's `gemini-embedding-001` model and stored in a pgvector table. At query time, only the relevant schema chunks are injected into the prompt, which keeps latency low and prevents context overload on large schemas.
+The schema is embedded once per upload or connection using Gemini's `gemini-embedding-001` model and stored in a pgvector table. At query time, only the relevant schema chunks are injected into the prompt, which keeps latency low and prevents context overload on large schemas.
 
 ---
 
@@ -76,6 +78,7 @@ The schema is embedded once (per upload or connection) using Gemini's `gemini-em
 | Frontend | React + TypeScript + Tailwind CSS |
 | Charts | Recharts |
 | Auth | JWT + bcrypt |
+| Deployment | Render (API) + Vercel (frontend) |
 | Tests | pytest (87 tests) |
 
 ---
@@ -101,9 +104,16 @@ cp .env.example .env
 
 You need:
 - `DATABASE_URL`: your Supabase connection string
-- `GEMINI_API_KEY`: Google AI Studio key for embeddings
-- `GROQ_API_KEY`: Groq key for LLM inference
-- `SECRET_KEY`: any long random string for JWT signing
+- `SANDBOX_DATABASE_URL`: read-only Supabase connection string
+- `GEMINI_API_KEY`: Google AI Studio key (free at aistudio.google.com)
+- `GROQ_API_KEY`: Groq key (free at console.groq.com)
+- `JWT_SECRET_KEY`: any long random string for JWT signing
+
+Generate a secret key:
+
+```bash
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
 
 Run the database migrations:
 
@@ -126,6 +136,27 @@ npm run dev
 ```
 
 Open `http://localhost:5173`. The API health check is at `http://localhost:8000/health`.
+
+---
+
+## Deploying your own instance
+
+**Backend on Render (free, no card required)**
+
+1. Sign up at render.com with your GitHub account
+2. New > Web Service > connect this repo
+3. Render detects `render.yaml` automatically
+4. Add environment variables: `DATABASE_URL`, `SANDBOX_DATABASE_URL`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `JWT_SECRET_KEY`, `ALLOWED_ORIGINS`
+5. Deploy
+
+**Frontend on Vercel (free, no card required)**
+
+1. Sign up at vercel.com with your GitHub account
+2. New Project > connect this repo > set Root Directory to `frontend`
+3. Add environment variable: `VITE_API_URL` = your Render service URL
+4. Deploy
+
+Once both are live, update `ALLOWED_ORIGINS` on Render to include your Vercel URL so CORS works correctly.
 
 ---
 
