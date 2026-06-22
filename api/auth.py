@@ -1,16 +1,14 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import bcrypt as _bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from pydantic import BaseModel
 
 from api.config import settings
 
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
@@ -20,11 +18,11 @@ class TokenData(BaseModel):
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return _bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
 
 
 def create_access_token(data: dict) -> str:
@@ -41,7 +39,8 @@ def decode_token(token: str) -> TokenData:
         payload = jwt.decode(
             token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
         )
-        user_id: int = payload.get("sub")
+        sub = payload.get("sub")
+        user_id: int | None = int(sub) if sub is not None else None
         email: str = payload.get("email")
         return TokenData(user_id=user_id, email=email)
     except JWTError:

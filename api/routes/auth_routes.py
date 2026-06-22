@@ -3,10 +3,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
-from api.auth import hash_password, verify_password, create_access_token
+from api.auth import create_access_token, hash_password, verify_password
 from api.database import get_db
 from api.models import User
-
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -33,7 +32,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    token = create_access_token({"sub": user.id, "email": user.email})
+    token = create_access_token({"sub": str(user.id), "email": user.email})
     return TokenResponse(access_token=token)
 
 
@@ -46,5 +45,5 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    token = create_access_token({"sub": user.id, "email": user.email})
+    token = create_access_token({"sub": str(user.id), "email": user.email})
     return TokenResponse(access_token=token)
