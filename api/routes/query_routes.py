@@ -13,7 +13,7 @@ Full pipeline:
 from __future__ import annotations
 
 import psycopg2
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from api.config import settings
@@ -151,3 +151,50 @@ def run_query(payload: QueryRequest) -> QueryResponse:
         semantic_score=semantic.score if semantic else None,
         semantic_note=semantic.explanation if semantic else None,
     )
+
+
+class HistoryEntry(BaseModel):
+    id: int
+    question: str
+    final_sql: str | None
+    success: bool
+    iterations: int
+    latency_ms: int | None
+    semantic_score: int | None
+    row_count: int | None
+    created_at: str
+
+
+@router.get("/history", response_model=list[HistoryEntry])
+def get_history(limit: int = Query(default=50, le=200)) -> list[HistoryEntry]:
+    try:
+        conn = psycopg2.connect(settings.database_url)
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, question, final_sql, success, iterations,
+                       latency_ms, semantic_score, row_count, created_at
+                FROM query_history
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            rows = cur.fetchall()
+        conn.close()
+        return [
+            HistoryEntry(
+                id=r[0],
+                question=r[1],
+                final_sql=r[2],
+                success=r[3],
+                iterations=r[4],
+                latency_ms=r[5],
+                semantic_score=r[6],
+                row_count=r[7],
+                created_at=r[8].isoformat() if r[8] else "",
+            )
+            for r in rows
+        ]
+    except Exception:
+        return []
