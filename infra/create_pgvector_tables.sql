@@ -2,9 +2,10 @@
 -- Requires the pgvector extension to be enabled:
 --   CREATE EXTENSION IF NOT EXISTS vector;
 
--- Main table that stores one row per embedded schema entry.
--- entry_type can be: 'table', 'column', or 'foreign_key'
--- embedding dimension 1536 matches text-embedding-3-small output.
+-- If you already ran this before, drop the old table first:
+--   DROP TABLE IF EXISTS schema_embeddings;
+
+-- embedding dimension 768 matches Gemini text-embedding-004 output.
 
 CREATE TABLE IF NOT EXISTS schema_embeddings (
     id              SERIAL PRIMARY KEY,
@@ -18,12 +19,11 @@ CREATE TABLE IF NOT EXISTS schema_embeddings (
     sample_values   JSONB,
     fk_references   VARCHAR(300),
     content         TEXT          NOT NULL,
-    embedding       vector(1536),
+    embedding       vector(768),
     created_at      TIMESTAMP     DEFAULT NOW()
 );
 
 -- IVFFlat cosine index for fast approximate nearest-neighbor search.
--- lists=100 is a good default for tables up to ~1 million rows.
 CREATE INDEX IF NOT EXISTS schema_embeddings_embedding_idx
     ON schema_embeddings
     USING ivfflat (embedding vector_cosine_ops)

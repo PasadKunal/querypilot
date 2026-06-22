@@ -1,32 +1,36 @@
 """
 Vector similarity search against the schema_embeddings pgvector table.
 
-At query time: embed the user's question -> cosine similarity search -> return
-the top-k most relevant schema entries (tables, columns, and FK relationships).
+At query time: embed the user's question using Gemini text-embedding-004
+-> cosine similarity search -> return the top-k most relevant schema entries.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+import google.generativeai as genai
 import psycopg2
 import psycopg2.extras
-from openai import OpenAI
 
 from api.config import settings
 
 
-EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_MODEL = "models/text-embedding-004"
 
 
 class VectorStore:
-    def __init__(self, db_url: str | None = None, openai_client: OpenAI | None = None) -> None:
+    def __init__(self, gemini_api_key: str | None = None, db_url: str | None = None) -> None:
         self.db_url = db_url or settings.database_url
-        self.client = openai_client or OpenAI(api_key=settings.openai_api_key)
+        genai.configure(api_key=gemini_api_key or settings.gemini_api_key)
 
     def embed_query(self, text: str) -> list[float]:
-        response = self.client.embeddings.create(model=EMBEDDING_MODEL, input=[text])
-        return response.data[0].embedding
+        result = genai.embed_content(
+            model=EMBEDDING_MODEL,
+            content=text,
+            task_type="retrieval_query",
+        )
+        return result["embedding"]
 
     def search(
         self,
@@ -43,11 +47,9 @@ class VectorStore:
         embedding_str = "[" + ",".join(str(v) for v in query_embedding) + "]"
 
         type_filter = ""
-        params: list[Any] = [schema_version, embedding_str, top_k]
         if entry_types:
             placeholders = ",".join(["%s"] * len(entry_types))
             type_filter = f"AND entry_type IN ({placeholders})"
-            params = [schema_version] + entry_types + [embedding_str, top_k]
 
         sql = f"""
             SELECT
@@ -68,11 +70,11 @@ class VectorStore:
             ORDER BY embedding <=> %s::vector
             LIMIT %s
         """
-        # Reorder params: version, (optional types), embedding for similarity, embedding for ORDER BY, top_k
+
         if entry_types:
-            sql_params = [schema_version] + entry_types + [embedding_str, embedding_str, top_k]
+            sql_params = [embedding_str, schema_version] + entry_types + [embedding_str, top_k]
         else:
-            sql_params = [schema_version, embedding_str, embedding_str, top_k]
+            sql_params = [embedding_str, schema_version, embedding_str, top_k]
 
         conn = psycopg2.connect(self.db_url)
         try:

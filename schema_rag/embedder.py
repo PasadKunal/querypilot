@@ -2,8 +2,8 @@
 Schema embedding pipeline.
 
 Reads SCHEMA_METADATA, converts each table/column/FK entry into a text string,
-calls text-embedding-3-small, and upserts the result into the schema_embeddings
-pgvector table in Supabase.
+calls Gemini text-embedding-004 (free tier), and upserts the result into the
+schema_embeddings pgvector table in Supabase.
 
 Run as a one-time setup script or after schema changes:
     python -m schema_rag.embedder
@@ -15,24 +15,24 @@ import json
 import time
 from typing import Any
 
+import google.generativeai as genai
 import psycopg2
 import psycopg2.extras
-from openai import OpenAI
 
 from api.config import settings
 from datasets.schema_metadata import SCHEMA_METADATA
 
 
-EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_DIM = 1536
+EMBEDDING_MODEL = "models/text-embedding-004"
+EMBEDDING_DIM = 768
 BATCH_SIZE = 50
 RATE_LIMIT_SLEEP = 0.5
 
 
 class SchemaEmbedder:
-    def __init__(self, db_url: str | None = None, openai_client: OpenAI | None = None) -> None:
+    def __init__(self, gemini_api_key: str | None = None, db_url: str | None = None) -> None:
         self.db_url = db_url or settings.database_url
-        self.client = openai_client or OpenAI(api_key=settings.openai_api_key)
+        genai.configure(api_key=gemini_api_key or settings.gemini_api_key)
 
     def run(self, schema_version: str = "v1") -> int:
         """Embed all entries in SCHEMA_METADATA and upsert them into pgvector. Returns total rows written."""
@@ -123,9 +123,15 @@ class SchemaEmbedder:
     def _embed_in_batches(self, texts: list[str]) -> list[list[float]]:
         all_embeddings: list[list[float]] = []
         for i in range(0, len(texts), BATCH_SIZE):
-            batch = texts[i : i + BATCH_SIZE]
-            response = self.client.embeddings.create(model=EMBEDDING_MODEL, input=batch)
-            batch_embeddings = [item.embedding for item in sorted(response.data, key=lambda x: x.index)]
+            batch = texts[i: i + BATCH_SIZE]
+            batch_embeddings: list[list[float]] = []
+            for text in batch:
+                result = genai.embed_content(
+                    model=EMBEDDING_MODEL,
+                    content=text,
+                    task_type="retrieval_document",
+                )
+                batch_embeddings.append(result["embedding"])
             all_embeddings.extend(batch_embeddings)
             print(f"  Embedded batch {i // BATCH_SIZE + 1}/{(len(texts) - 1) // BATCH_SIZE + 1}")
             time.sleep(RATE_LIMIT_SLEEP)

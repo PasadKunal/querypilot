@@ -55,5 +55,5 @@ class SchemaEmbedding(Base):
     sample_values = Column(JSON)
     fk_references = Column(String(300))
     content = Column(Text, nullable=False)
-    embedding = Column(Vector(1536))
+    embedding = Column(Vector(768))
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

@@ -17,10 +17,12 @@ passlib[bcrypt]>=1.7.4
 python-multipart>=0.0.9
 
 # AI / LLM
-openai>=1.50.0
-anthropic>=0.40.0
+google-generativeai>=0.8.0
 groq>=0.11.0
-tiktoken>=0.7.0
+
+# Optional: OpenAI and Anthropic kept for benchmarking in Phase 5
+# openai>=1.50.0
+# anthropic>=0.40.0
 
 # SQL parsing and validation
 sqlglot>=26.0.0
