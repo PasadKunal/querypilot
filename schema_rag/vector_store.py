@@ -9,28 +9,29 @@ from __future__ import annotations
 
 from typing import Any
 
-import google.generativeai as genai
 import psycopg2
 import psycopg2.extras
+from google import genai
+from google.genai import types
 
 from api.config import settings
 
 
-EMBEDDING_MODEL = "models/text-embedding-004"
+EMBEDDING_MODEL = "gemini-embedding-001"
 
 
 class VectorStore:
     def __init__(self, gemini_api_key: str | None = None, db_url: str | None = None) -> None:
         self.db_url = db_url or settings.database_url
-        genai.configure(api_key=gemini_api_key or settings.gemini_api_key)
+        self.client = genai.Client(api_key=gemini_api_key or settings.gemini_api_key)
 
     def embed_query(self, text: str) -> list[float]:
-        result = genai.embed_content(
+        response = self.client.models.embed_content(
             model=EMBEDDING_MODEL,
-            content=text,
-            task_type="retrieval_query",
+            contents=text,
+            config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY", output_dimensionality=768),
         )
-        return result["embedding"]
+        return list(response.embeddings[0].values)
 
     def search(
         self,

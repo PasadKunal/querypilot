@@ -15,15 +15,16 @@ import json
 import time
 from typing import Any
 
-import google.generativeai as genai
 import psycopg2
 import psycopg2.extras
+from google import genai
+from google.genai import types
 
 from api.config import settings
 from datasets.schema_metadata import SCHEMA_METADATA
 
 
-EMBEDDING_MODEL = "models/text-embedding-004"
+EMBEDDING_MODEL = "gemini-embedding-001"
 EMBEDDING_DIM = 768
 BATCH_SIZE = 50
 RATE_LIMIT_SLEEP = 0.5
@@ -32,7 +33,7 @@ RATE_LIMIT_SLEEP = 0.5
 class SchemaEmbedder:
     def __init__(self, gemini_api_key: str | None = None, db_url: str | None = None) -> None:
         self.db_url = db_url or settings.database_url
-        genai.configure(api_key=gemini_api_key or settings.gemini_api_key)
+        self.client = genai.Client(api_key=gemini_api_key or settings.gemini_api_key)
 
     def run(self, schema_version: str = "v1") -> int:
         """Embed all entries in SCHEMA_METADATA and upsert them into pgvector. Returns total rows written."""
@@ -124,14 +125,12 @@ class SchemaEmbedder:
         all_embeddings: list[list[float]] = []
         for i in range(0, len(texts), BATCH_SIZE):
             batch = texts[i: i + BATCH_SIZE]
-            batch_embeddings: list[list[float]] = []
-            for text in batch:
-                result = genai.embed_content(
-                    model=EMBEDDING_MODEL,
-                    content=text,
-                    task_type="retrieval_document",
-                )
-                batch_embeddings.append(result["embedding"])
+            response = self.client.models.embed_content(
+                model=EMBEDDING_MODEL,
+                contents=batch,
+                config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT", output_dimensionality=768),
+            )
+            batch_embeddings = [list(e.values) for e in response.embeddings]
             all_embeddings.extend(batch_embeddings)
             print(f"  Embedded batch {i // BATCH_SIZE + 1}/{(len(texts) - 1) // BATCH_SIZE + 1}")
             time.sleep(RATE_LIMIT_SLEEP)
