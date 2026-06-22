@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { checkHealth } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 
 export default function Navbar() {
+  const { email, logout } = useAuth();
+  const navigate = useNavigate();
   const [online, setOnline] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -10,6 +13,11 @@ export default function Navbar() {
     const id = setInterval(() => checkHealth().then(setOnline), 15000);
     return () => clearInterval(id);
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <aside className="w-56 min-h-screen bg-slate-900 flex flex-col py-6 px-4 shrink-0">
@@ -46,10 +54,10 @@ export default function Navbar() {
         </NavLink>
       </nav>
 
-      <div className="mt-auto pt-4 border-t border-slate-800">
+      <div className="mt-auto pt-4 border-t border-slate-800 flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <span
-            className={`w-2 h-2 rounded-full ${
+            className={`w-2 h-2 rounded-full shrink-0 ${
               online === null ? "bg-slate-500" : online ? "bg-emerald-400" : "bg-red-400"
             }`}
           />
@@ -57,6 +65,18 @@ export default function Navbar() {
             {online === null ? "Checking..." : online ? "API online" : "API offline"}
           </span>
         </div>
+
+        {email && (
+          <div className="flex flex-col gap-1">
+            <p className="text-slate-500 text-xs truncate" title={email}>{email}</p>
+            <button
+              onClick={handleLogout}
+              className="text-left text-slate-400 hover:text-white text-xs transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );
