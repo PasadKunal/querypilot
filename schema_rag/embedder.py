@@ -23,7 +23,6 @@ from google.genai import types
 from api.config import settings
 from datasets.schema_metadata import SCHEMA_METADATA
 
-
 EMBEDDING_MODEL = "gemini-embedding-001"
 EMBEDDING_DIM = 768
 BATCH_SIZE = 45

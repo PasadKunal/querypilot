@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, Text, JSON
+
 from pgvector.sqlalchemy import Vector
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Integer, String, Text
+
 from api.database import Base
 
 

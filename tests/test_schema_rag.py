@@ -9,8 +9,8 @@ require a live Supabase connection and are skipped in CI.
 import pytest
 
 from datasets.schema_metadata import SCHEMA_METADATA
-from schema_rag.fk_graph import FKGraph
 from schema_rag.disambiguation import ColumnDisambiguator
+from schema_rag.fk_graph import FKGraph
 
 
 @pytest.fixture(scope="module")

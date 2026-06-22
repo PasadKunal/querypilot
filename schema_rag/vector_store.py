@@ -16,7 +16,6 @@ from google.genai import types
 
 from api.config import settings
 
-
 EMBEDDING_MODEL = "gemini-embedding-001"
 
 

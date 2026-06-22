@@ -8,7 +8,6 @@ values for each so the LLM can distinguish them without guessing.
 
 from __future__ import annotations
 
-import json
 from collections import defaultdict
 from typing import Any
 

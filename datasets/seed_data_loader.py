@@ -12,6 +12,7 @@ TPC-H or NYC Taxi public datasets.
 from __future__ import annotations
 
 import os
+
 import psycopg2
 
 from api.config import settings
