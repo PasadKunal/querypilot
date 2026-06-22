@@ -15,7 +15,6 @@ from groq import Groq
 
 from api.config import settings
 
-
 MODEL = "llama-3.3-70b-versatile"
 TEMPERATURE = 0.1  # low for deterministic SQL
 

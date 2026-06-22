@@ -13,15 +13,13 @@ Full pipeline:
 from __future__ import annotations
 
 import psycopg2
-
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from api.config import settings
 from schema_rag.context_assembler import ContextAssembler
-from sql_agent.corrector import SelfCorrector
 from sql_agent import semantic_checker
-
+from sql_agent.corrector import SelfCorrector
 
 router = APIRouter(prefix="/api", tags=["query"])
 

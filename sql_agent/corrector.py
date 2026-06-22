@@ -19,7 +19,6 @@ from sql_agent.executor import ExecutionResult, execute
 from sql_agent.generator import GenerationResult, SQLGenerator
 from sql_agent.validator import ValidationResult, validate
 
-
 MAX_ITERATIONS = 3
 
 

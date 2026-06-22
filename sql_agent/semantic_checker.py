@@ -16,7 +16,6 @@ from groq import Groq
 
 from api.config import settings
 
-
 MODEL = "llama-3.3-70b-versatile"
 SEMANTIC_PASS_THRESHOLD = 7
 SAMPLE_ROWS = 5

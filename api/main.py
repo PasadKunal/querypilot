@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.routes.auth_routes import router as auth_router
 from api.routes.query_routes import router as query_router
 
-
 app = FastAPI(
     title="QueryPilot",
     description="Production NL-to-SQL agent with schema RAG, self-correction, and fine-tuning",

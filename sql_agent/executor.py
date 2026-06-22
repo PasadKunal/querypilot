@@ -15,7 +15,6 @@ import psycopg2.extras
 
 from api.config import settings
 
-
 MAX_ROWS = 1_000
 TIMEOUT_MS = 10_000  # 10 seconds, enforced by postgres statement_timeout
 

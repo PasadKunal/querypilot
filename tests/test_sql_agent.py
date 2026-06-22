@@ -7,10 +7,9 @@ Generator tests are skipped if GROQ_API_KEY is not set.
 
 from __future__ import annotations
 
-import pytest
-
-from sql_agent.validator import validate, ValidationResult
-
+from sql_agent.corrector import CorrectionAttempt, CorrectionResult
+from sql_agent.executor import ExecutionResult
+from sql_agent.validator import ValidationResult, validate
 
 # ---------------------------------------------------------------------------
 # Validator tests
@@ -83,10 +82,6 @@ class TestValidator:
 # ---------------------------------------------------------------------------
 # Corrector dataclass / plumbing tests (no LLM or DB calls)
 # ---------------------------------------------------------------------------
-
-from sql_agent.corrector import CorrectionResult, CorrectionAttempt
-from sql_agent.executor import ExecutionResult
-from sql_agent.validator import ValidationResult
 
 
 class TestCorrectionResult:
