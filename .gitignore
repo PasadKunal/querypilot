@@ -1,0 +1,51 @@
+# Environment
+.env
+.env.local
+qpvenv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.next/
+.npm
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# MLflow
+mlruns/
+
+# Model weights (too large for git)
+*.bin
+*.safetensors
+*.gguf
+adapters/
+
+# Misc
+*.docx
