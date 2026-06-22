@@ -15,14 +15,20 @@ export default function HistoryPage() {
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
-      {/* Page header */}
-      <div className="bg-white border-b border-slate-200 px-8 py-5">
-        <h1 className="text-lg font-semibold text-slate-900">Query History</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Last 50 queries run by the agent</p>
+    <div className="flex flex-col h-full overflow-y-auto">
+      {/* Dark header to match Query page style */}
+      <div className="bg-gradient-to-b from-slate-950 to-slate-900 px-8 pt-10 pb-8 shrink-0">
+        <div className="max-w-5xl mx-auto">
+          <span className="inline-flex items-center gap-1.5 bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-medium px-3 py-1 rounded-full mb-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+            Query log
+          </span>
+          <h1 className="text-2xl font-bold text-white mb-1">Query History</h1>
+          <p className="text-slate-400 text-sm">Every query the agent has run, with SQL, score, and latency.</p>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-8 py-6 max-w-6xl w-full mx-auto">
+      <div className="flex-1 bg-slate-50 px-8 py-8 max-w-5xl w-full mx-auto">
 
         {loading && (
           <div className="flex items-center gap-2.5 text-slate-400 py-10 justify-center">
