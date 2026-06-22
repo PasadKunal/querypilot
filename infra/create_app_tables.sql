@@ -1,6 +1,16 @@
 -- Application tables for QueryPilot
 -- Run this in the Supabase SQL editor after create_pgvector_tables.sql
 
+CREATE TABLE IF NOT EXISTS users (
+    id              SERIAL PRIMARY KEY,
+    email           VARCHAR UNIQUE NOT NULL,
+    hashed_password VARCHAR        NOT NULL,
+    is_active       BOOLEAN        DEFAULT TRUE,
+    created_at      TIMESTAMPTZ    DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS users_email_idx ON users (email);
+
 CREATE TABLE IF NOT EXISTS query_history (
     id              SERIAL PRIMARY KEY,
     user_id         INTEGER,
