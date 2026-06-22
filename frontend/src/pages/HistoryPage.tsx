@@ -18,7 +18,7 @@ export default function HistoryPage() {
     <div className="flex flex-col h-full overflow-y-auto">
       {/* Dark header to match Query page style */}
       <div className="bg-gradient-to-b from-slate-950 to-slate-900 px-8 pt-10 pb-8 shrink-0">
-        <div className="max-w-5xl mx-auto">
+        <div>
           <span className="inline-flex items-center gap-1.5 bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-medium px-3 py-1 rounded-full mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
             Query log
@@ -28,7 +28,7 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      <div className="flex-1 bg-slate-50 px-8 py-8 max-w-5xl w-full mx-auto">
+      <div className="flex-1 bg-slate-50 px-8 py-8">
 
         {loading && (
           <div className="flex items-center gap-2.5 text-slate-400 py-10 justify-center">

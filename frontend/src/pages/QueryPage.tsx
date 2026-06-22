@@ -86,7 +86,7 @@ export default function QueryPage() {
 
       {/* ── Hero section ── */}
       <div className="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 px-8 pt-10 pb-8 shrink-0">
-        <div className="max-w-3xl mx-auto">
+        <div>
           {/* Badge */}
           <div className="flex items-center gap-2 mb-5">
             <span className="inline-flex items-center gap-1.5 bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-medium px-3 py-1 rounded-full">
@@ -142,7 +142,7 @@ export default function QueryPage() {
 
       {/* ── Content area ── */}
       <div className="flex-1 bg-slate-50 px-8 py-8">
-        <div className="max-w-3xl mx-auto">
+        <div>
 
           {/* Loading */}
           {loading && (
