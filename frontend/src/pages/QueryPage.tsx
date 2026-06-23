@@ -296,6 +296,33 @@ export default function QueryPage() {
                 </div>
               )}
 
+              {/* Insights */}
+              {result.insights && (
+                <div className="bg-gradient-to-br from-indigo-50 to-violet-50 rounded-2xl border border-indigo-100 p-5 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg">✨</span>
+                    <p className="text-xs font-semibold text-indigo-600 uppercase tracking-widest">AI Insights</p>
+                  </div>
+                  <p className="text-slate-700 text-sm leading-relaxed">{result.insights}</p>
+                  {result.suggested_questions.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-indigo-100">
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2.5">Suggested follow-ups</p>
+                      <div className="flex flex-wrap gap-2">
+                        {result.suggested_questions.map((q) => (
+                          <button
+                            key={q}
+                            onClick={() => setQuestion(q)}
+                            className="text-xs text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-all text-left"
+                          >
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Chart */}
               {result.rows.length > 0 && (
                 <ResultChart columns={result.columns} rows={result.rows} />

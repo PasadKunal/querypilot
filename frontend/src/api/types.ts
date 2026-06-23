@@ -29,6 +29,8 @@ export interface QueryResponse {
   semantic_score: number | null;
   semantic_note: string | null;
   error: string | null;
+  insights: string | null;
+  suggested_questions: string[];
 }
 
 export interface ColumnInfo {

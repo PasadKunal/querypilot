@@ -12,8 +12,11 @@ Full pipeline:
 
 from __future__ import annotations
 
+import json
+
 import psycopg2
 from fastapi import APIRouter, Query
+from groq import Groq
 from pydantic import BaseModel, Field
 
 from api.config import settings
@@ -21,6 +24,8 @@ from api.routes.connection_routes import get_connection_url
 from schema_rag.context_assembler import ContextAssembler
 from sql_agent import semantic_checker
 from sql_agent.corrector import SelfCorrector
+
+_INSIGHTS_MODEL = "llama-3.3-70b-versatile"
 
 router = APIRouter(prefix="/api", tags=["query"])
 
@@ -65,6 +70,53 @@ class QueryResponse(BaseModel):
     semantic_score: int | None = None
     semantic_note: str | None = None
     error: str | None = None
+    insights: str | None = None
+    suggested_questions: list[str] = []
+
+
+def _generate_insights(
+    question: str,
+    sql: str,
+    columns: list[str],
+    rows: list[dict],
+    row_count: int,
+) -> tuple[str | None, list[str]]:
+    try:
+        sample = rows[:20]
+        header = " | ".join(columns)
+        divider = "-" * len(header)
+        data_lines = [" | ".join(str(r.get(c, "")) for c in columns) for r in sample]
+        table_str = "\n".join([header, divider, *data_lines])
+        truncated_note = f" (showing {len(sample)} of {row_count})" if row_count > len(sample) else ""
+
+        prompt = f"""You are a data analyst helping a non-technical user understand their data.
+
+User asked: "{question}"
+
+SQL that ran:
+{sql}
+
+Result ({row_count} rows{truncated_note}):
+{table_str}
+
+Respond with a JSON object with exactly two keys:
+- "insights": 3 to 5 sentences explaining what this data shows, any key patterns or trends, and what it means in plain business terms. Be specific about the numbers you see.
+- "suggested_questions": a list of exactly 3 short follow-up questions the user might want to ask next based on these results.
+
+JSON only, no extra text."""
+
+        client = Groq(api_key=settings.groq_api_key)
+        response = client.chat.completions.create(
+            model=_INSIGHTS_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=600,
+            response_format={"type": "json_object"},
+        )
+        data = json.loads(response.choices[0].message.content or "{}")
+        return data.get("insights"), data.get("suggested_questions", [])
+    except Exception:
+        return None, []
 
 
 def _save_to_history(result, semantic, question: str, schema_version: str) -> int | None:
@@ -149,6 +201,16 @@ def run_query(payload: QueryRequest) -> QueryResponse:
             error=result.error_trace or "Query failed after max retries.",
         )
 
+    insights, suggested_questions = (None, [])
+    if result.rows:
+        insights, suggested_questions = _generate_insights(
+            question=payload.question,
+            sql=result.sql,
+            columns=result.columns,
+            rows=result.rows,
+            row_count=result.row_count,
+        )
+
     return QueryResponse(
         success=True,
         query_id=query_id,
@@ -164,6 +226,8 @@ def run_query(payload: QueryRequest) -> QueryResponse:
         latency_ms=result.latency_ms,
         semantic_score=semantic.score if semantic else None,
         semantic_note=semantic.explanation if semantic else None,
+        insights=insights,
+        suggested_questions=suggested_questions,
     )
 
 
