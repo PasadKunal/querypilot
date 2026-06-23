@@ -28,6 +28,9 @@ Query results are automatically visualized. Bar chart by default, line chart for
 **Export and save**
 Download any result set as a CSV. Bookmark questions you run often with the star button and rerun them with one click.
 
+**AI Insights after every result**
+After each successful query, a second LLM call analyzes the result rows and writes a plain-English explanation of what the data shows: key patterns, trends, and what it means in business terms. Three follow-up questions are suggested below the analysis, and clicking any of them pre-fills the question box so you can keep exploring with one click.
+
 **Feedback loop**
 Thumbs up or down on any result. Ratings are stored in the database for future fine-tuning or analysis.
 
@@ -59,10 +62,17 @@ Semantic Scorer
 
      |
      v
-Result + Chart + Export
+Result + Chart + Export CSV
+
+     |
+     v
+AI Insights (second Groq call, best-effort)
+  Plain-English analysis of the result + 3 suggested follow-up questions
 ```
 
 The schema is embedded once per upload or connection using Gemini's `gemini-embedding-001` model and stored in a pgvector table. At query time, only the relevant schema chunks are injected into the prompt, which keeps latency low and prevents context overload on large schemas.
+
+After results are returned, a second Groq call analyzes the rows and generates plain-English insights and follow-up suggestions. This call is best-effort and never blocks or delays the query response.
 
 ---
 
